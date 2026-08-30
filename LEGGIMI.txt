@@ -1,0 +1,18 @@
+BLUEBLOOD WEB - VERCEL
+
+Cartella da caricare: BlueBlood-Web
+File: index.html, vercel.json, package.json, api/quote.js
+
+DAL PC:
+1. Vai su https://vercel.com
+2. Accedi con GitHub (lo stesso sassulavoro1)
+3. Add New -> Project
+4. Se il repo e' solo Kivy, meglio: Add New -> Project -> Upload
+   oppure crea un NUOVO repo GitHub "BlueBlood-Web" e carica SOLO questa cartella
+5. Framework Preset: Other
+6. Deploy
+
+Quando e' Ready, apri il link .vercel.app sul telefono.
+Chrome -> menu -> Aggiungi a schermata Home.
+
+Non caricare main.py Kivy su Vercel.
