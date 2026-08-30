@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="theme-color" content="#07080c"/>
+<title>BlueBlood Sala Live</title>
+<link rel="manifest" href="/manifest.webmanifest"/>
+<link rel="icon" href="/icon.png"/>
+<link rel="apple-touch-icon" href="/icon.png"/>
+<style>
+:root{--bg:#06070b;--card:#10131a;--gold:#e8c75a;--gold2:#b8923a;--ice:#c8d8f4;--green:#3feb7a;--red:#ff6b6b;--muted:#8a93a6;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#eef2f8;font-family:Georgia,system-ui,sans-serif;overflow-x:hidden}
+#start{min-height:100dvh;padding:24px 16px}
+#app{display:none;padding:8px 8px 28px}
+h1{color:var(--gold);letter-spacing:.16em;text-align:center;margin:36px 0 8px;font-size:24px}
+.sub,.hint{text-align:center;color:var(--muted);font-size:13px}
+.sub{color:var(--ice)}
+.rules{max-width:440px;margin:18px auto;background:var(--card);border:1px solid #2a2416;border-radius:14px;padding:14px;text-align:center;color:#c9c3b4;font-size:13px}
+button{border:0;border-radius:8px;padding:9px 10px;font-weight:700;cursor:pointer}
+.gold{background:var(--gold2);color:#1a1408}
+.blue{background:#1e2a44;color:#dce6ff}
+.row{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0}
+.row button{flex:1;min-width:58px;font-size:12px}
+.hud{background:var(--card);border-radius:12px;padding:8px;margin-bottom:6px;border:1px solid #1c2230}
+.cap{text-align:center;color:var(--gold);font-size:20px}
+.pnl,.clock,.st{text-align:center;font-size:12px;color:var(--muted)}
+.tape{overflow:hidden;white-space:nowrap;background:#0a0c12;padding:5px 0;margin:0 0 6px;font-size:11px;border-top:1px solid #1c2230;border-bottom:1px solid #1c2230}
+.tape span{display:inline-block;padding-left:100%;animation:marq 42s linear infinite}
+@keyframes marq{to{transform:translateX(-100%)}}
+.up{color:var(--green)} .dn{color:var(--red)}
+.mkts{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.mkt{background:#0c1018;border:1px solid #222836;border-radius:8px;padding:7px;cursor:pointer}
+.mkt.on{border-color:var(--gold2)}
+.mkt .n{color:var(--ice);font-size:11px}
+.mkt .p{font-size:15px;margin-top:2px}
+.mkt .c,.mkt .sg{font-size:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
+.desk{background:#0c1018;border:1px solid #222836;border-radius:8px;padding:6px}
+.desk b{color:var(--gold);font-size:11px;display:block}
+.desk .role,.desk .mood{font-size:10px;color:var(--muted)}
+.log,.ticket{background:#0c1018;border-radius:8px;padding:8px;font-size:11px;white-space:pre-wrap;max-height:110px;overflow:auto;border:1px solid #222836}
+.overlay{position:fixed;inset:0;background:#000a;display:none;align-items:flex-end;justify-content:center;z-index:20}
+.box{background:#10141c;border:1px solid var(--gold2);border-radius:16px 16px 0 0;padding:12px;width:100%;max-width:640px;max-height:92dvh;overflow:auto}
+#chartBig{width:100%;height:220px;background:#080a10;border-radius:8px}
+.live{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3feb7a;margin-right:5px;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.3}}
+.an{font-size:12px;color:var(--ice);margin:8px 0;line-height:1.45}
+</style>
+</head>
+<body>
+<section id="start">
+  <h1>B L U E B L O O D</h1>
+  <p class="sub">WATCHLIST PERSONALE</p>
+  <p class="hint">materie · tech · Italia · indici · forex · crypto</p>
+  <div class="rules">Tocca un mercato per il grafico con timeframe e analisi.<br>Paper only. Il broker lo muovi tu.</div>
+  <div style="text-align:center"><button class="gold" onclick="entra()">ENTRA NELLA SALA</button></div>
+</section>
+<section id="app">
+  <div class="tape"><span id="tape">Avvia la sala — </span></div>
+  <div class="hud">
+    <div class="clock" id="clock"></div>
+    <div class="cap" id="cap">CAPITALE DEMO €100.00</div>
+    <div class="pnl" id="pnl">P&L +0.00%</div>
+    <div class="st" id="st">Sala ferma</div>
+  </div>
+  <div class="row">
+    <button class="gold" id="go" onclick="toggle()">AVVIA SALA</button>
+    <button class="blue" onclick="resetCap()">RESET</button>
+  </div>
+  <div class="row" id="presets"></div>
+  <div class="mkts" id="mkts"></div>
+  <div class="grid" id="desks"></div>
+  <p class="hint">BIGLIETTO</p>
+  <div class="ticket" id="ticket">Nessun segnale.</div>
+  <p class="hint">LOG</p>
+  <div class="log" id="log"></div>
+</section>
+<div class="overlay" id="pop"><div class="box" id="popbox"></div></div>
+<script>
+const SYMBOLS=[
+  ["CL=F","Petrolio"],["NG=F","Gas nat."],["GC=F","Oro"],["SI=F","Argento"],["PL=F","Platino"],
+  ["LIT","Lithium ETF"],["ZETA","Zeta Global"],["TSLA","Tesla"],["GOOGL","Alphabet"],["NVDA","NVIDIA"],
+  ["AMD","AMD"],["ARM","ARM"],["ASML","ASML"],["SMCI","Super Micro"],["QS","QuantumScape"],
+  ["MSFT","Microsoft"],["AMZN","Amazon"],["NIO","NIO"],
+  ["LDO.MI","Leonardo"],["UCG.MI","UniCredit"],["A2A.MI","A2A"],["PST.MI","Poste"],
+  ["STLAM.MI","Stellantis"],["RACE","Ferrari"],["ABNB","Airbnb"],
+  ["^GSPC","S&P 500"],["^NDX","Nasdaq 100"],["^DJI","USA 30"],["QQQ","QQQ"],
+  ["^HSI","Hong Kong 50"],["^STOXX50E","Europa 50"],["^STOXX","Europe 600"],["FTSEMIB.MI","Italia 40"],
+  ["USDCHF=X","USD/CHF"],["GBPUSD=X","GBP/USD"],["EURUSD=X","EUR/USD"],
+  ["AIQ","Indice IA"],["METV","Metaverso"],["ESGU","ESG"],["NATO","Difesa EU"],
+  ["EEM","Emergenti"],["MAGS","Mag 7"],["BTC-USD","Bitcoin"],["ETH-USD","Ethereum"]
+];
+const AGENTS=[["Marco","Trend"],["Giulia","RSI"],["Luca","Break"],["Sara","Risk"],["Paolo","Vol"],["Elena","Mom"],["Davide","Macro"],["Rita","Veto"],["Nico","Scalp"],["Olivia","Flow"]];
+const TF=[["1m","1d","1m"],["5m","5d","5m"],["15m","5d","15m"],["1h","1mo","1h"],["1d","6mo","1D"]];
+let capital=100,startCap=100,running=false,timer=null,focus="NVDA",busy=false;
+const last={};
+
+function $(id){return document.getElementById(id)}
+function log(m){const e=$("log"); e.textContent=new Date().toLocaleTimeString()+"  "+m+"\n"+e.textContent.slice(0,2800)}
+function entra(){
+  $("start").style.display="none"; $("app").style.display="block";
+  if(window.Notification && Notification.permission==="default") Notification.requestPermission();
+  tickClock(); setInterval(tickClock,1000); buildUI(); log("Watchlist personale: "+SYMBOLS.length+" mercati.");
+}
+function tickClock(){$("clock").textContent=new Date().toLocaleString("it-IT")}
+function buildUI(){
+  $("presets").innerHTML=[100,250,500,1000].map(v=>`<button class="blue" onclick="setCap(${v})">€${v}</button>`).join("");
+  $("mkts").innerHTML=SYMBOLS.map(([s,n])=>`<div class="mkt" id="m_${cssId(s)}" onclick="openChart('${s}')"><div class="n">${n}</div><div class="p">—</div><div class="c">attesa</div><div class="sg">tocca per grafico</div></div>`).join("");
+  $("desks").innerHTML=AGENTS.map(([n,r],i)=>`<div class="desk" id="d${i}"><b>${n}</b><div class="role">${r}</div><div class="mood">STANDBY</div></div>`).join("");
+  renderCap();
+}
+function cssId(s){return s.replace(/[^A-Za-z0-9]/g,"_")}
+function renderCap(){
+  const pnl=((capital-startCap)/Math.max(startCap,1))*100;
+  $("cap").textContent=`CAPITALE DEMO €${capital.toFixed(2)}`;
+  $("pnl").textContent=`P&L ${pnl>=0?"+":""}${pnl.toFixed(2)}%`;
+  $("pnl").style.color=pnl>=0?"var(--green)":"var(--red)";
+}
+function setCap(v){capital=v;startCap=v;renderCap();log("Capitale €"+v)}
+function resetCap(){setCap(startCap)}
+function toggle(){
+  running=!running;
+  $("go").textContent=running?"STOP SALA":"AVVIA SALA";
+  $("st").innerHTML=running?'<span class="live"></span>'+SYMBOLS.length+" mercati · 10s":"Sala ferma";
+  if(running){log("Scan avviato"); cycle(); timer=setInterval(cycle,10000)}
+  else {clearInterval(timer); log("Stop")}
+}
+async function pull(sym, interval="5m", range="5d"){
+  const r=await fetch("/api/quote?symbol="+encodeURIComponent(sym)+"&interval="+interval+"&range="+range);
+  const j=await r.json();
+  if(!j.ok) throw new Error(j.error||"fail");
+  last[sym]=j; return j;
+}
+function sma(a,n){if(!a||a.length<n)return null; let s=0; for(let i=a.length-n;i<a.length;i++)s+=a[i]; return s/n}
+function rsi(a,n=14){if(!a||a.length<n+1)return 50; let g=0,l=0; for(let i=a.length-n;i<a.length;i++){const d=a[i]-a[i-1]; if(d>=0)g+=d; else l-=d;} if(!l)return 100; return 100-100/(1+g/l)}
+function vote(j){
+  const c=j.closes||[], p=j.price, s20=sma(c,20), r=rsi(c), ch=j.chg||0;
+  return {
+    0:s20&&p>s20?"LONG":s20&&p<s20?"SHORT":"WAIT",
+    1:r<32?"LONG":r>68?"SHORT":"WAIT",
+    2:Math.abs(ch)>0.35?(ch>0?"LONG":"SHORT"):"WAIT",
+    3:Math.abs(ch)>1.8?"WAIT":ch>0?"LONG":"SHORT",
+    4:ch>0.2?"LONG":ch<-0.2?"SHORT":"WAIT",
+    5:ch>0.25?"LONG":ch<-0.25?"SHORT":"WAIT",
+    6:sma(c,Math.min(50,c.length))&&p>sma(c,Math.min(50,c.length))?"LONG":"SHORT",
+    7:Math.abs(ch)>2.4?"VETO":"OK",
+    8:Math.abs(ch)>0.1&&Math.abs(ch)<0.6?(ch>0?"LONG":"SHORT"):"WAIT",
+    9:ch>0?"LONG":ch<0?"SHORT":"WAIT"
+  };
+}
+function fmt(p){if(p==null)return "—"; if(p>200)return p.toFixed(2); if(p>20)return p.toFixed(2); return p.toFixed(4)}
+function paint(cv, closes, sma20, sma50){
+  const ctx=cv.getContext("2d");
+  cv.width=cv.clientWidth*2; cv.height=cv.clientHeight*2;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  if(!closes||closes.length<2)return;
+  const min=Math.min(...closes), max=Math.max(...closes), span=max-min||1;
+  const y=v=>cv.height-16-((v-min)/span)*(cv.height-32);
+  const x=i=>i/(closes.length-1)*cv.width;
+  function line(arr,color){
+    if(!arr)return; ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath();
+    arr.forEach((v,i)=>{if(v==null)return; i?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v))}); ctx.stroke();
+  }
+  line(closes,"#e8c75a");
+  if(sma20){ctx.setLineDash([6,4]); line(closes.map((_,i)=>i>=19?sma(closes.slice(0,i+1),20):null),"#6ea8ff"); ctx.setLineDash([]);}
+}
+async function cycle(){
+  if(busy) return; busy=true;
+  const tape=[]; let best=null;
+  for(let i=0;i<SYMBOLS.length;i+=8){
+    const chunk=SYMBOLS.slice(i,i+8);
+    const rows=await Promise.all(chunk.map(([s])=>pull(s).then(j=>({s,j})).catch(()=>({s,j:null}))));
+    for(const {s,j} of rows){
+      const card=document.getElementById("m_"+cssId(s));
+      if(!j){ if(card) card.querySelector(".c").textContent="offline"; continue; }
+      const cls=j.chg>=0?"up":"dn";
+      if(card){
+        card.querySelector(".p").textContent=fmt(j.price);
+        card.querySelector(".c").innerHTML=`<span class="${cls}">${j.chg>=0?"+":""}${j.chg.toFixed(2)}%</span>`;
+      }
+      const v=vote(j); let long=0,short=0,veto=false;
+      Object.values(v).forEach(m=>{if(m==="LONG")long++; if(m==="SHORT")short++; if(m==="VETO")veto=true;});
+      if(s===focus){
+        AGENTS.forEach((_,k)=>{
+          const mood=v[k]||"WAIT"; const el=$("d"+k).querySelector(".mood");
+          el.textContent=mood;
+          el.style.color=mood==="LONG"?"var(--green)":mood==="SHORT"?"var(--red)":mood==="VETO"?"var(--gold)":"var(--ice)";
+        });
+      }
+      const side=veto?null:(long>=6?"LONG":short>=6?"SHORT":null);
+      if(card) card.querySelector(".sg").textContent=side?side+" "+Math.max(long,short)+"/10":(veto?"VETO":"neutro");
+      const name=(SYMBOLS.find(x=>x[0]===s)||[s,s])[1];
+      tape.push(name+" "+fmt(j.price)+" "+(j.chg>=0?"+":"")+j.chg.toFixed(2)+"%");
+      if(side && (!best || Math.max(long,short)>best.score)){
+        const sl=side==="LONG"?j.price*0.992:j.price*1.008;
+        const tp=side==="LONG"?j.price*1.012:j.price*0.988;
+        best={score:Math.max(long,short),side,s,name,price:j.price,sl,tp};
+      }
+    }
+  }
+  $("tape").textContent="  ·  "+tape.join("   ·   ")+"   ·  ";
+  if(best){
+    const txt=`${best.side} ${best.name} @ ${fmt(best.price)}<br>SL ${fmt(best.sl)} · TP ${fmt(best.tp)}<br>Consenso ${best.score}/10`;
+    $("ticket").textContent=txt.replace(/<br>/g,"\n");
+    if(window.Notification && Notification.permission==="granted") new Notification("SEGNALE "+best.side,{body:best.name});
+    log(best.side+" "+best.name+" SL "+fmt(best.sl)+" TP "+fmt(best.tp));
+  }
+  busy=false;
+}
+async function openChart(sym, tf=1){
+  focus=sym;
+  document.querySelectorAll(".mkt").forEach(e=>e.classList.remove("on"));
+  const card=document.getElementById("m_"+cssId(sym)); if(card) card.classList.add("on");
+  const name=(SYMBOLS.find(x=>x[0]===sym)||[sym,sym])[1];
+  const [interval,range,label]=TF[tf];
+  $("pop").style.display="flex";
+  $("popbox").innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center">
+    <b style="color:var(--gold)">${name}</b>
+    <button class="blue" id="xpop">CHIUDI</button></div>
+    <div class="row" id="tfs"></div>
+    <canvas id="chartBig"></canvas>
+    <div class="an" id="an">Carico ${label}…</div>`;
+  document.getElementById("xpop").onclick=()=>$("pop").style.display="none";
+  $("tfs").innerHTML=TF.map((t,i)=>`<button class="${i===tf?"gold":"blue"}" onclick="openChart('${sym}',${i})">${t[2]}</button>`).join("");
+  try{
+    const j=await pull(sym, interval, range);
+    const c=j.closes||[];
+    const s20=sma(c,20), s50=sma(c,Math.min(50,c.length)), r=rsi(c);
+    paint(document.getElementById("chartBig"), c, s20, s50);
+    const bias=s20&&j.price>s20?"sopra SMA20 (trend +)":s20&&j.price<s20?"sotto SMA20 (trend −)":"SMA insufficiente";
+    $("an").innerHTML=`Prezzo <b>${fmt(j.price)}</b> · var <span class="${j.chg>=0?"up":"dn"}">${j.chg>=0?"+":""}${j.chg.toFixed(2)}%</span><br>
+      Timeframe ${label} · barre ${c.length}<br>
+      SMA20 ${s20?fmt(s20):"—"} · SMA50 ${s50?fmt(s50):"—"} · RSI ${r.toFixed(1)}<br>
+      ${bias}<br>
+      Linea oro = prezzo · blu tratteggiata = SMA20`;
+  }catch(e){$("an").textContent="Grafico non disponibile su questo timeframe."}
+}
+</script>
+</body>
+</html>
